@@ -1,0 +1,47 @@
+# Packet description Notes
+# tagged-unions always have a header that will appear in all items in the union
+# The idea here is that this will cleanly map to a C union, with each item
+# being a struct with the first item being the header. This makes it easy to
+# cast a packet into either a header, or a specific type based on the tag
+# names are converted to one of several naming conventions
+# Type names (so names of structs) are renamed to
+# CapitalCamelCase
+# Field names are converted to lower_snake_case
+# This allows the fields and packets have nice readable names, but be converted to
+# programming language idiomatic names at compile time
+packet:
+  items:
+    tagged-union:
+      header:
+        fields:
+          - name: Source address
+            type: uint8
+          - name: tag # This is the type of the union (one of items)
+            type: uint8
+          - name: size # Unclear if this is needed or not
+            type: uint8
+      items:
+        - name: ack
+          type: empty # empty types are indistinguishable from headers data wise, but have a unique tag
+        - name: ADC Sensor Packet # -> AdcSensorPacket
+          type: struct
+          fields:
+            - name: ADC Value
+              type: uint16
+        - name: Dual Mode Sensor Packet
+          type: struct
+          fields:
+            - name: ADC Value
+              type: uint16
+            - name: Battery Percentage
+              field_name: batt # The naming conventions can be overwritten by using field_name
+            - name: time
+              type: uint32
+            - name: button
+              type: uint8
+            - name: Conc Led Toggle
+              tpye: bool
+
+
+
+

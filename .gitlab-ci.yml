@@ -3,6 +3,9 @@
 # can use verions as well, like gcc:5.2
 # see https://hub.docker.com/_/gcc/
 image: gcc
+cache:
+  paths:
+  - cmake-build/
 
 build:
   stage: build
