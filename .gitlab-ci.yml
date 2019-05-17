@@ -14,7 +14,7 @@ build:
   before_script:
     - apt update && apt -y install make autoconf cmake
   script:
-    - mkdir cmake-build && cd cmake-build && cmake .. && make all
+    - mkdir -p cmake-build && cd cmake-build && cmake .. && make all
   # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
   # cache:
   #   paths:
