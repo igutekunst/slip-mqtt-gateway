@@ -10,37 +10,42 @@
 # This allows the fields and packets have nice readable names, but be converted to
 # programming language idiomatic names at compile time
 packet:
-  items:
-    tagged-union:
-      header:
+    type: tagged-union
+    name: Concentrator Packet
+    header:
+      type: struct
+      name: PacketHeader
+      fields:
+        - name: Source address
+          type: uint8
+        - name: Packet Type # This is the type of the union (one of items)
+          type: uint8
+          is_tag: true # Need some method to identify which header field is the "tag" for the tagged union
+        - name: size # Unclear if this is needed or not
+          type: uint8
+    fields:
+      - name: Ack Packet
+        type: struct # empty types are indistinguishable from headers data wise, but have a unique tag
+        fields: []
+      - name: ADC Sensor Packet # -> AdcSensorPacket
+        type: struct
         fields:
-          - name: Source address
+          - name: ADC Value
+            type: uint16
+      - name: Dual Mode Sensor Packet
+        type: struct
+        fields:
+          - name: ADC Value
+            type: uint16
+          - name: Battery Percentage
+            field_name: batt # The naming conventions can be overwritten by using field_name
+            type: uint16
+          - name: time
+            type: uint32
+          - name: button
             type: uint8
-          - name: tag # This is the type of the union (one of items)
-            type: uint8
-          - name: size # Unclear if this is needed or not
-            type: uint8
-      items:
-        - name: ack
-          type: empty # empty types are indistinguishable from headers data wise, but have a unique tag
-        - name: ADC Sensor Packet # -> AdcSensorPacket
-          type: struct
-          fields:
-            - name: ADC Value
-              type: uint16
-        - name: Dual Mode Sensor Packet
-          type: struct
-          fields:
-            - name: ADC Value
-              type: uint16
-            - name: Battery Percentage
-              field_name: batt # The naming conventions can be overwritten by using field_name
-            - name: time
-              type: uint32
-            - name: button
-              type: uint8
-            - name: Conc Led Toggle
-              tpye: bool
+          - name: Conc Led Toggle
+            type: bool
 
 
 

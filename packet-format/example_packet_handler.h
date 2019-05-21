@@ -18,6 +18,8 @@ typedef enum {
 struct PacketHeader {
     uint8_t sourceAddress;
     PacketType packetType;
+    struct {int foo} Absolute;
+
 };
 
 struct AdcSensorPacket {

@@ -11,6 +11,7 @@ include(gtest_download)
 add_library(slip_mqtt_gateway
         src/library.c
         packet-format/example_packet_handler.h
+        packet-format/packet_header.h
         src/library.h)
 
 add_executable(test_slip_mqtt_gateway tests/test_basic.cpp)
