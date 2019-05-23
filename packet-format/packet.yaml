@@ -14,7 +14,7 @@ packet:
     name: Concentrator Packet
     header:
       type: struct
-      name: PacketHeader
+      name: Packet Header
       fields:
         - name: Source address
           type: uint8

@@ -13,6 +13,7 @@ from mako.template import Template
 from os.path import splitext
 import os
 import sys
+import copy
 
 
 c_type_map = {
@@ -115,6 +116,72 @@ def process_packet_items(packet, parent=None, context=None):
 
     return packet
 
+class MakeVisitor(object):
+
+    def __new__(cls, name, bases, dct):
+        x = super().__new__(cls, name, bases, dct)
+        x.attr = 100
+        return x
+
+
+class PacketVisitor(object):
+
+    def __init__(self):
+        self.stack = []
+    def visit(self, packet, parent=None):
+        self.stack.append(packet)
+        if packet:
+            if packet['type'] == 'struct':
+                if hasattr(self, 'visit_struct'):
+                    packet = self.visit_struct(packet, parent)
+
+                for i, field in enumerate(packet['fields']):
+                    packet['fields'][i] = self.visit(field, packet)
+
+                if hasattr(self, 'visit_struct_post'):
+                    packet = self.visit_struct_post(packet, parent)
+
+            elif packet['type'] == 'tagged-union':
+                if hasattr(self, 'visit_tagged_union'):
+                    packet = self.visit_tagged_union(packet, parent)
+
+                for i, field in enumerate(packet['header']['fields']):
+                    packet['header']['fields'][i] = self.visit(field, packet)
+                for i, field in enumerate(packet['fields']):
+                    packet['fields'][i] = self.visit(field, packet)
+
+                if hasattr(self, 'visit_tagged_union_post'):
+                    packet = self.visit_tagged_union_post(packet, parent)
+
+            elif packet['type'] in c_type_map:
+                if hasattr(self, 'visit_c_type'):
+                    packet = self.visit_c_type(packet, parent)
+        self.stack.pop()
+        return packet
+
+class GeneratePacketParser(PacketVisitor):
+    def get_pointer(self):
+        names = [item['name'] for item in self.stack[1:]]
+        names = map(make_c_identifier, names)
+        return '.'.join(names)
+
+
+    def visit_struct(self, packet, parent):
+        print(self.get_pointer())
+        return packet
+
+    def visit_tagged_union(self, packet, parent):
+        print(self.get_pointer())
+        return packet
+
+    def visit_tagged_union_post(self, packet, parent):
+        print(self.get_pointer())
+        return packet
+
+    def visit_c_type(self, packet, parent):
+        print(self.get_pointer())
+        return packet
+
 def load_yaml(yaml_filename, schema_file=None):
     with open(yaml_filename) as f:
         return yaml.safe_load(f)
@@ -138,11 +205,17 @@ def main():
 
     data = load_yaml(args.yaml_file)
 
-    templates = [fpath('packet_header.h.mako')]
+    templates = [fpath('packet_header.h.mako'), fpath('packet_decoder.c.mako')]
 
     items = data['packet']
+    unparsed_packet = copy.deepcopy(data['packet'])
+
     context = {'structs': {}, 'enums': {}}
     packet = process_packet_items(items, context=context)
+
+    pv = GeneratePacketParser()
+    pv.visit(unparsed_packet)
+
     for template_filename in templates:
         base_name, ext = splitext(template_filename)
 
@@ -154,7 +227,9 @@ def main():
                               format_decl=format_decl,
                               template_filename=template_filename,
                               exe=os.path.split(sys.argv[0])[1],
-                              make_c_typename=make_c_typename
+                              make_c_typename=make_c_typename,
+                              make_c_identifier=make_c_identifier,
+                              c_type_map=c_type_map
                               )
 
         with open(base_name, 'w') as out_file:
