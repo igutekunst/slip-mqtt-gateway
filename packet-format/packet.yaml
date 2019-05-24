@@ -19,7 +19,7 @@ packet:
         - name: Source address
           type: uint8
         - name: Packet Type # This is the type of the union (one of items)
-          type: uint8
+          type: uint32
           is_tag: true # Need some method to identify which header field is the "tag" for the tagged union
         - name: size # Unclear if this is needed or not
           type: uint8
@@ -38,7 +38,6 @@ packet:
           - name: ADC Value
             type: uint16
           - name: Battery Percentage
-            field_name: batt # The naming conventions can be overwritten by using field_name
             type: uint16
           - name: time
             type: uint32

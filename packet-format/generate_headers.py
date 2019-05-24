@@ -128,6 +128,7 @@ class PacketVisitor(object):
 
     def __init__(self):
         self.stack = []
+
     def visit(self, packet, parent=None):
         self.stack.append(packet)
         if packet:
@@ -145,8 +146,14 @@ class PacketVisitor(object):
                 if hasattr(self, 'visit_tagged_union'):
                     packet = self.visit_tagged_union(packet, parent)
 
+                self.stack.append(packet['header'])
                 for i, field in enumerate(packet['header']['fields']):
                     packet['header']['fields'][i] = self.visit(field, packet)
+                self.stack.pop()
+
+                if hasattr(self, 'visit_tagged_union_post_header'):
+                    packet = self.visit_tagged_union_post_header(packet, parent)
+
                 for i, field in enumerate(packet['fields']):
                     packet['fields'][i] = self.visit(field, packet)
 
@@ -160,26 +167,83 @@ class PacketVisitor(object):
         return packet
 
 class GeneratePacketParser(PacketVisitor):
+    def __init__(self):
+        super().__init__()
+        self._indent = 0
+        self._context = []
+        self.code = []
+    def indent(self):
+        return ' ' * (2 * self._indent)
+
+    def push_context(self):
+        self._context.append({})
+
+    def pop_context(self):
+        self._context.pop()
+
+    def context(self):
+        return self._context[len(self._context) - 1]
+
     def get_pointer(self):
         names = [item['name'] for item in self.stack[1:]]
         names = map(make_c_identifier, names)
         return '.'.join(names)
 
-
     def visit_struct(self, packet, parent):
-        print(self.get_pointer())
+        if parent['type'] == 'tagged-union':
+            self.code.append({
+                'op': 'label',
+                'operand': self.context()['operand'],
+                'value':  self.context()['case'],
+            })
+            self.context()['case'] += 1
+            self._indent += 1
         return packet
+
+    def visit_struct_post(self, packet, parent):
+        if parent['type'] == 'tagged-union':
+            self._indent -=1
+        self.code.append({
+            'op': 'return'
+        })
+
 
     def visit_tagged_union(self, packet, parent):
         print(self.get_pointer())
         return packet
 
     def visit_tagged_union_post(self, packet, parent):
-        print(self.get_pointer())
+        self._indent -= 1
+        self.pop_context()
+
+        self.code.append({
+            'op': 'end-switch'
+        })
+
+        return packet
+
+    def visit_tagged_union_post_header(self, packet, parent):
+        self.push_context()
+        self.context()['case'] = 0
+        tag = None
+        for item in packet['header']['fields']:
+            if 'is_tag' in item and item['is_tag']:
+                tag = item
+        operand = self.get_pointer() + make_c_identifier(packet['header']['name']) + '.' + make_c_identifier(tag['name'])
+        self.context()['operand'] = operand
+        self.code.append({
+           'op': 'switch',
+           'operand': operand
+        })
+        self._indent += 1
         return packet
 
     def visit_c_type(self, packet, parent):
-        print(self.get_pointer())
+        self.code.append({
+            'op': 'read',
+            'dst':  self.get_pointer(),
+            'type': packet['type'],
+        })
         return packet
 
 def load_yaml(yaml_filename, schema_file=None):
@@ -216,6 +280,9 @@ def main():
     pv = GeneratePacketParser()
     pv.visit(unparsed_packet)
 
+    for op in pv.code:
+        print (op)
+
     for template_filename in templates:
         base_name, ext = splitext(template_filename)
 
@@ -229,7 +296,8 @@ def main():
                               exe=os.path.split(sys.argv[0])[1],
                               make_c_typename=make_c_typename,
                               make_c_identifier=make_c_identifier,
-                              c_type_map=c_type_map
+                              c_type_map=c_type_map,
+                              parser_code=pv.code
                               )
 
         with open(base_name, 'w') as out_file:

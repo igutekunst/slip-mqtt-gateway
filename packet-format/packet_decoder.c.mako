@@ -1,17 +1,15 @@
 #include <packet_header.h>
 #include <stddef.h>
-
-typedef enum {
-    PACKET_PARSE_ERROR_NONE,
-    PACKET_PARSER_ERROR_MALFORMED
-} PacketParserReturnType;
+#include <packet_decoder.h>
 
 
 void read_data(void* dst, uint8_t** data_ptr, size_t size) {
+    memcpy(dst, *data_ptr, size);
+    *data_ptr += size;
 }
 
 % for type,c_type in c_type_map.items():
-#define read_${'{}(dst, src){}'.format(c_type, ' '*(8-len(c_type)))} read_data(dst, src, sizeof(${c_type})
+#define read_${'{}(dst, src){}'.format(c_type, ' '*(8-len(c_type)))} read_data(dst, src, sizeof(${c_type}))
 % endfor
 
 PacketParserReturnType
@@ -21,23 +19,18 @@ packet_decode_from_byte_array(union ConcentratorPacket* packet,
                               ) {
     uint8_t* data_ptr = data;
 
-    ${render_field(packet)}
-}
+% for op in parser_code:
+% if op['op'] == 'read':
+    read_${c_type_map[op['type']]}(&(packet->${op['dst']}), &data_ptr);
+% elif op['op'] == 'switch':
+    switch(packet->${op['operand']}) {
+% elif op['op'] == 'end-switch':
+    }
+% elif op['op'] == 'return':
+    break;
+% elif op['op'] == 'label':
+    case ${op['value']}:
+% endif
+% endfor
+    }
 
-<%def name='render_field(field)'>
-    % if field['type'] == 'struct':
-    % for f in field['fields']:
-    ${render_field(f)} \
-    % endfor
-    % elif field['type'] == 'tagged-union':
-    // Tagged union
-    % for f in field['header']['fields']:
-    ${render_field(f)}
-    % endfor
-    % for f in field['fields']:
-    ${render_field(f)}
-    % endfor
-    % else :
-    read_${c_type_map[field['type']]}(${make_c_identifier(field['name'])}, &data_ptr); \
-    % endif
-</%def>

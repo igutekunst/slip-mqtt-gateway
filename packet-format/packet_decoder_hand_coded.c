@@ -22,7 +22,13 @@ void read_data(void* dst, uint8_t** data_ptr, size_t size) {
 #define read_double(dst, src) read_data(dst, src, sizeof(double))
 #define read_uint8_t(dst, src) read_data(dst, src, sizeof(uint8_t))
 
-
+/**
+ *  Decode packet from raw network order (LE) packet
+ * @param packet
+ * @param data
+ * @param size
+ * @return
+ */
 PacketParserReturnType
 packet_decode_from_byte_array(union ConcentratorPacket* packet,
                               uint8_t *data,
@@ -45,7 +51,7 @@ packet_decode_from_byte_array(union ConcentratorPacket* packet,
 
         case DUAL_MODE_SENSOR_PACKET:
             read_uint16_t(&(packet->dual_mode_sensor_packet.adc_value), &data_ptr);
-            read_uint16_t(&(packet->dual_mode_sensor_packet.batt), &data_ptr);
+            read_uint16_t(&(packet->dual_mode_sensor_packet.battery_percentage), &data_ptr);
             read_uint32_t(&(packet->dual_mode_sensor_packet.time), &data_ptr);
             read_uint8_t (&(packet->dual_mode_sensor_packet.button), &data_ptr);
             read_uint8_t (&(packet->dual_mode_sensor_packet.conc_led_toggle), &data_ptr);

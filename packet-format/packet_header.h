@@ -33,7 +33,7 @@ struct AdcSensorPacket {
 struct DualModeSensorPacket { 
     struct PacketHeader packet_header;
     uint16_t adc_value;
-    uint16_t batt;
+    uint16_t battery_percentage;
     uint32_t time;
     uint8_t button;
     bool conc_led_toggle;

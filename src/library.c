@@ -14,7 +14,7 @@ int hello(void) {
             .adc_value = 15,
             .time = 40,
             .button = false,
-            .batt = 100
+            .battery_percentage = 100
         }
 
     };
