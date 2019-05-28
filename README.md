@@ -55,3 +55,9 @@ union CommPacket {
  
 [SLIP]: https://github.com/lobaro/util-slip
 [Adafruit IO]: https://io.adafruit.com
+
+
+## TODO
+* Properly support reading/writing enumerations (size of native type might vary from network type
+* Verify network order is as expected
+* Properly use size variable to not overflow buffers/packets
