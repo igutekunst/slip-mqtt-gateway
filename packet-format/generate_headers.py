@@ -14,6 +14,28 @@ from os.path import splitext
 import os
 import sys
 import copy
+import random
+import string
+
+
+def get_var_generator():
+    used_vars = set()
+
+    def random_uniqe_variable():
+        nonlocal used_vars
+        letters = string.ascii_lowercase + string.digits
+        potential_var = '_unique_var_' + ''.join(random.choice(letters) for i in range(8))
+        while potential_var in used_vars:
+            potential_var = '_unique_var_' + ''.join(random.choice(letters) for i in range(5))
+        return potential_var
+
+    return random_uniqe_variable
+
+uniqe_var = get_var_generator()
+
+print (uniqe_var())
+print (uniqe_var())
+
 
 
 c_type_map = {
@@ -172,6 +194,7 @@ class GeneratePacketParser(PacketVisitor):
         self._indent = 0
         self._context = []
         self.code = []
+
     def indent(self):
         return ' ' * (2 * self._indent)
 
@@ -200,19 +223,18 @@ class GeneratePacketParser(PacketVisitor):
             self._indent += 1
         return packet
 
-    def visit_struct_post(self, packet, parent):
+    def visit_struct_post(self, item, parent):
         if parent['type'] == 'tagged-union':
             self._indent -=1
         self.code.append({
             'op': 'return'
         })
 
-
-    def visit_tagged_union(self, packet, parent):
+    def visit_tagged_union(self, utem, parent):
         print(self.get_pointer())
-        return packet
+        return utem
 
-    def visit_tagged_union_post(self, packet, parent):
+    def visit_tagged_union_post(self, item, parent):
         self._indent -= 1
         self.pop_context()
 
@@ -220,31 +242,37 @@ class GeneratePacketParser(PacketVisitor):
             'op': 'end-switch'
         })
 
-        return packet
+        return item
 
-    def visit_tagged_union_post_header(self, packet, parent):
+    def visit_tagged_union_post_header(self, item, parent):
         self.push_context()
         self.context()['case'] = 0
         tag = None
-        for item in packet['header']['fields']:
-            if 'is_tag' in item and item['is_tag']:
-                tag = item
-        operand = self.get_pointer() + make_c_identifier(packet['header']['name']) + '.' + make_c_identifier(tag['name'])
+        for field in item['header']['fields']:
+            if 'is_tag' in field and field['is_tag']:
+                tag = field
+        operand = self.get_pointer() + make_c_identifier(item['header']['name']) + '.' + make_c_identifier(tag['name'])
         self.context()['operand'] = operand
         self.code.append({
            'op': 'switch',
            'operand': operand
         })
         self._indent += 1
-        return packet
+        return item
 
-    def visit_c_type(self, packet, parent):
+    def visit_c_type(self, item, parent):
+        full_type = c_type_map[item['type']]
+        c_type = item['type']
+        if 'is_tag' in item and item['is_tag']:
+            full_type = 'enum {}'.format(make_c_typename(item['name']))
+
         self.code.append({
             'op': 'read',
             'dst':  self.get_pointer(),
-            'type': packet['type'],
+            'full_type': full_type,
+            'type': c_type
         })
-        return packet
+        return item
 
 def load_yaml(yaml_filename, schema_file=None):
     with open(yaml_filename) as f:
@@ -297,7 +325,8 @@ def main():
                               make_c_typename=make_c_typename,
                               make_c_identifier=make_c_identifier,
                               c_type_map=c_type_map,
-                              parser_code=pv.code
+                              parser_code=pv.code,
+                              uniqe_var=uniqe_var
                               )
 
         with open(base_name, 'w') as out_file:

@@ -1,7 +1,7 @@
 # Google Test
 
 # Download and unpack googletest at configure time
-configure_file(googletest-CMakeLists.txt.in googletest-download/CMakeLists.txt)
+configure_file(cmake/googletest-CMakeLists.txt.in googletest-download/CMakeLists.txt)
 execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/googletest-download" )
 execute_process(COMMAND "${CMAKE_COMMAND}" --build .

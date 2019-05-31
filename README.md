@@ -59,5 +59,31 @@ union CommPacket {
 
 ## TODO
 * Properly support reading/writing enumerations (size of native type might vary from network type
+    - One idea here, is change the read/write routine to memcpy data to alligned area in region, and then to an assignment
+      If we assume the bytes are in platform order after memcpy, then all we need to do is an assignment
+      ```
+      //max alligned scratch region
+      uint64_t scratch;
+      scratch = 0;
+      memcpy(&scratch, packet, element_size);
+      packet->field = *((element_type*) &scratch);
+
+      write_uint8_t(&data_ptr, &(packet->packet_header.source_address), &bytes_remaining);
+      // becomes
+
+      scratch = 0;
+      memcpy(&scratch, &data_ptr, sizeof(uint8_t);
+      packet->packet_header.packet_type = *((uint8_t*) &scratch);
+      ```
+      This works because it will ensure the correct C type promotion/demotion happens without having to worry about
+      the bytes themselves, and if an enumeration is a different size, the compiler will deal with it.. We don't need
+      to know the size of all enumerations.
+
+      The drawback is that this take quite a performance penalty to ensure aligned access. It might be better to
+      do the straight memcpy in some cases, but only do the scratch in the case where the storage size is unknown, which is probably only for
+      enumerations
 * Verify network order is as expected
 * Properly use size variable to not overflow buffers/packets
+    - Use correct return type
+* Make fake serial port/serial port abstraction
+* Fix SLIP library and start using

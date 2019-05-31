@@ -3,21 +3,70 @@
 #include <packet_decoder.h>
 #include <string.h>
 
+/**
+* The next few macros are useful for making unique names
+* for variables, usually useful for use within a macro.
+* NOTE: this will break if you use it more than once per line!
+*/
+#define PP_CAT(a, b) PP_CAT_I(a, b)
+#define PP_CAT_I(a, b) PP_CAT_II(~, a ## b)
+#define PP_CAT_II(p, res) res
 
-void read_data(void* dst, uint8_t** data_ptr, size_t size) {
+#define UNIQUE_NAME(base) PP_CAT(base, __LINE__)
+
+/**
+* Generic read function that will convert between network and platform byte order.
+* @param dst destination buffer to read data into.
+* @param data_ptr source buffer to read bytes from
+* @param size size of data to read
+* @param bytes_remaining number of bytes available in data_ptr
+*/
+void read_data(void* dst, uint8_t** data_ptr, size_t size, size_t* bytes_remaining) {
+    if (size > *bytes_remaining) {
+        return;
+    }
     memcpy(dst, *data_ptr, size);
     *data_ptr += size;
+    *bytes_remaining -= size;
 }
 
-void write_data(uint8_t** data_ptr, void* dst, size_t size) {
-    memcpy(dst, *data_ptr, size);
+
+/**
+* Generic write function that will convert between network and platform byte order.
+* @param data_ptr source buffer to write bytes to
+* @param src pointer to platform specific variable to read data from
+* @param size size of data to write to data_ptr
+* @param bytes_remaining number of bytes available in data_ptr
+*/
+void write_data(uint8_t** data_ptr, void* src, size_t size, size_t* bytes_remaining) {
+    if (size > *bytes_remaining) {
+        return;
+    }
+    memcpy(*data_ptr, src, size);
     *data_ptr += size;
+    *bytes_remaining -= size;
 }
 
+
+
+% if False:
 % for type,c_type in c_type_map.items():
-#define read_${'{}(dst, src){}'.format(c_type, ' '*(8-len(c_type)))}  read_data(dst, src, sizeof(${c_type}))
-#define write_${'{}(dst, src){}'.format(c_type, ' '*(8-len(c_type)))} write_data(dst, src, sizeof(${c_type}))
+% if 'c_type' != 'enum': # enums are handled as a special case
+#define read_${'{}(dst, src, bytes_remaining){}'.format(c_type, ' '*(8-len(c_type)))}  read_data(dst, src, sizeof(${c_type}), bytes_remaining)
+#define write_${'{}(dst, src, bytes_remaining){}'.format(c_type, ' '*(8-len(c_type)))} write_data(dst, src, sizeof(${c_type}), bytes_remaining)
+% endif
 % endfor
+%endif
+
+#define READ_TYPED(c_type, packet_type, dst, src, bytes_remaining)  read_data(&(dst), src, sizeof(c_type), bytes_remaining)
+#define WRITE_TYPED(c_type,packet_type, dst, src, bytes_remaining) write_data(dst, &(src), sizeof(c_type), bytes_remaining)
+
+#define READ_ENUM(c_type, packet_type, dst, src, bytes_remaining) ${"\\"}
+    uint64_t UNIQUE_NAME(scratch) = 0; memcpy(&UNIQUE_NAME(scratch), *(src), sizeof(packet_type)); dst = (c_type) UNIQUE_NAME(scratch); *(src) += sizeof(packet_type)
+
+
+#define WRITE_ENUM(c_type, packet_type, dst, src, bytes_remaining) ${"\\"}
+    packet_type UNIQUE_NAME(scratch) = (packet_type) src; memcpy(dst, &UNIQUE_NAME(scratch), sizeof(packet_type));
 
 /**
  *  Decode packet from raw network order (LE) packet
@@ -32,6 +81,7 @@ packet_decode_from_byte_array(union ConcentratorPacket* packet,
                               size_t size
                               ) {
     uint8_t* data_ptr = data;
+    size_t bytes_remaining = size;
     ${make_codec_body(parser_code, 'read')}
 
 }
@@ -50,18 +100,20 @@ packet_encode_to_byte_array(uint8_t *data,
                             size_t size
                             ) {
     uint8_t* data_ptr = data;
-    ${make_codec_body(parser_code, 'write')}
+    size_t bytes_remaining = size;
+    ${make_codec_body(parser_code, 'write')}\
 
 }
 
 <%def name='make_codec_body(code,rw)'>
 <% indent = 0 %>
 % for op in code:
+<% F = 'ENUM' if 'full_type' in op and op['full_type'].startswith('enum') else 'TYPED' %>\
 % if op['op'] == 'read':
     % if rw == 'read':
-    ${' ' * indent}read_${c_type_map[op['type']]}(&(packet->${op['dst']}), &data_ptr);\
+    ${' ' * indent}READ_${F}(${op['full_type']}, ${c_type_map[op['type']]}, packet->${op['dst']}, &data_ptr, &bytes_remaining);\
     % else:
-    ${' ' * indent}write_${c_type_map[op['type']]}(&data_ptr, &(packet->${op['dst']}));\
+    ${' ' * indent}WRITE_${F}(${op['full_type']}, ${c_type_map[op['type']]}, &data_ptr, packet->${op['dst']}, &bytes_remaining);\
     % endif
 % elif op['op'] == 'switch':
     ${' ' * indent}switch(packet->${op['operand']}) {\

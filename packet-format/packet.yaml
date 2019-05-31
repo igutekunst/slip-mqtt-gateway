@@ -19,7 +19,7 @@ packet:
         - name: Source address
           type: uint8
         - name: Packet Type # This is the type of the union (one of items)
-          type: uint32
+          type: uint8
           is_tag: true # Need some method to identify which header field is the "tag" for the tagged union
         - name: size # Unclear if this is needed or not
           type: uint8
