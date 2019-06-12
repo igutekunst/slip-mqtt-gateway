@@ -21,11 +21,9 @@ packet:
         - name: Packet Type # This is the type of the union (one of items)
           type: uint8
           is_tag: true # Need some method to identify which header field is the "tag" for the tagged union
-        - name: size # Unclear if this is needed or not
-          type: uint8
     fields:
       - name: Ack Packet
-        type: struct # empty types are indistinguishable from headers data wise, but have a unique tag
+        type: struct # empty types are indistinguishable from headers data wise, but have a unique tagg
         fields: []
       - name: ADC Sensor Packet # -> AdcSensorPacket
         type: struct

@@ -6,6 +6,7 @@ This is a sub-project over the IoT gateway project. This readme describes
 both the larger architecture, as well as specifics ot the SLIP MQTT gateway project.
 
 
+
 ## Proposed Architecture
 
 A 'concentrator' node is connected to Particle device via SPI or UART.
@@ -25,6 +26,7 @@ easier and less error prone to add sensors.
 
 Future versions could support a dynamic configuration loaded via another method, potentially OTA.
 
+
 ### Technical details
 The "gateway" consists of a low power RF transceiver (CC1350) and a IP capable MCU with an MQTT stack.
 The two communicate via a custom packet format that is encoded using [SLIP]. This translation layer
@@ -33,6 +35,7 @@ sending and receiving bytes.
 
 
 **Packet format**
+
 The packet format between the IP MCU and concentrator is intentionally very simple. It maps 1:1 with the packet
 format used over the air, with slight modifications used to store the length of the packet.
 
@@ -48,6 +51,35 @@ union CommPacket {
     struct DualModeSensorPacket dmSensorPacket;
 };
 ```
+
+###  Library Structure
+
+This library is designed to run on multiple targets: Desktop (Posix), Arduino,
+Arduino like (Particle), and TI RTOS projects, specifically the CC13xx wireless MCUs.
+
+These will likely be broken up into three separate libraries once the infrastructure is in place.
+
+```
+
+Main Library
+packet.yaml -> packet_decoder.{c,h}
+               packet_header.h
+         
+Serial HAL Library
+                serial_hal.c
+                serial_hal.h
+                
+SLIP Library:
+                slip.c
+                slip.h
+                
+
+All target will use these core files to create appropriate libraries.
+
+```
+
+
+
 
 ## References
  * [SLIP] - A useful tool for encoding packets of an arbitrary serial link.
@@ -82,8 +114,9 @@ union CommPacket {
       The drawback is that this take quite a performance penalty to ensure aligned access. It might be better to
       do the straight memcpy in some cases, but only do the scratch in the case where the storage size is unknown, which is probably only for
       enumerations
-* Verify network order is as expected
+      
 * Properly use size variable to not overflow buffers/packets
-    - Use correct return type
-* Make fake serial port/serial port abstraction
-* Fix SLIP library and start using
+* Re-organize to generate arduino libraries
+* Make some more unit tests
+
+

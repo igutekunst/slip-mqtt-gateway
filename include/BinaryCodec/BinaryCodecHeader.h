@@ -1,7 +1,7 @@
 #ifndef PACKET_HEADER_H
 #define PACKET_HEADER_H
 /**
-* This file is auto-generated from /Users/igutek/Documents/Projects/Kevin/Firmware/slip-mqtt-gateway/packet-format/packet_header.h.mako. Please
+* This file is auto-generated from /Users/igutek/Documents/Projects/Kevin/Firmware/slip-mqtt-gateway/src/templates/BinaryCodecHeader.h.mako. Please
 * edit the source template if possible and then re-run  generate_headers.py.
 */
 
@@ -18,7 +18,6 @@ enum PacketType {
 struct PacketHeader { 
     uint8_t source_address;
     enum PacketType packet_type;
-    uint8_t size;
 };
 
 struct AckPacket { 

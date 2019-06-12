@@ -11,25 +11,24 @@
 #include <assert.h>
 #include "slip.h"
 
-
 /* SEND_PACKET: sends a packet of length "len", starting at
  * location "p".
  */
-void slip_send_packet(uint8_t *p, int len, void (*send_char)(char c)) {
+void slip_send_packet(uint8_t *p, int len, SerialPort* serial) {
 
     /* send an initial END character to flush out any data that may
      * have accumulated in the receiver due to line noise
      */
-    send_char(SLIP_END);
+    serial_send_byte(serial, SLIP_END);
 
-    slip_encode(p, len, send_char);
+    slip_encode(p, len, serial);
 
     /* tell the receiver that we're done sending the packet
      */
-    send_char(SLIP_END);
+    serial_send_byte(serial, SLIP_END);
 }
 
-void slip_encode(const uint8_t* p, int len, void (* send_char)(char c)) {
+void slip_encode(const uint8_t* p, int len, SerialPort* serial) {
     /* for each byte in the packet, send the appropriate character
      * sequence
      */
@@ -40,8 +39,8 @@ void slip_encode(const uint8_t* p, int len, void (* send_char)(char c)) {
              * receiver think we sent an END
              */
             case SLIP_END:
-                send_char(SLIP_ESC);
-                send_char(SLIP_ESC_END);
+                serial_send_byte(serial, SLIP_ESC);
+                serial_send_byte(serial, SLIP_ESC_END);
                 break;
 
                 /* if it's the same code as an ESC character,
@@ -49,30 +48,27 @@ void slip_encode(const uint8_t* p, int len, void (* send_char)(char c)) {
                  * to make the receiver think we sent an ESC
                  */
             case SLIP_ESC:
-                send_char(SLIP_ESC);
-                send_char(SLIP_ESC_ESC);
+                serial_send_byte(serial, SLIP_ESC);
+                serial_send_byte(serial, SLIP_ESC_ESC);
                 break;
                 /* otherwise, we just send the character
                  */
             default:
-                send_char(*p);
+                serial_send_byte(serial, *p);
         }
         p++;
     }
 }
+
 
 /* RECV_PACKET: reads a packet from buf into the buffer located at "p".
  *      If more than len bytes are received, the packet will
  *      be truncated.
  *      Returns the number of bytes stored in the buffer.
  */
-int slip_read_packet(uint8_t *p, int len) {
-    char c;
-    int received = 0;
-
-    if (buf->packetCnt == 0) {
-        return 0;
-    }
+int slip_read_packet(uint8_t *p, int len, SerialPort* serial) {
+    uint8_t c;
+    int bytes_received = 0;
 
     /* sit in a loop reading bytes until we put together
      * a whole packet.
@@ -80,17 +76,8 @@ int slip_read_packet(uint8_t *p, int len) {
      * run out of room.
      */
     while (1) {
-        /* get a character to process
-         */
-        if (isBufferEmpty(&(buf->ringBuf))) {
-            configASSERT(buf->packetCnt == 0);
-            return received;
-        }
-        //taskENTER_CRITICAL();
-        configASSERT(!isBufferFull(&(buf->ringBuf)));
-        drv_rbuf_read(&(buf->ringBuf), &c);
-        //taskEXIT_CRITICAL();
 
+        int status = serial_recv_bytes(serial, &c, 1);
         /* handle bytestuffing if necessary
          */
         switch (c) {
@@ -106,11 +93,8 @@ int slip_read_packet(uint8_t *p, int len) {
                  * duplicate END characters which are in
                  * turn sent to try to detect line noise.
                  */
-                if (received) {
-                    taskENTER_CRITICAL();
-                    buf->packetCnt--;
-                    taskEXIT_CRITICAL();
-                    return received;
+                if (bytes_received) {
+                    return bytes_received;
                 }
                 else {
                     break;
@@ -121,14 +105,7 @@ int slip_read_packet(uint8_t *p, int len) {
                  * what to store in the packet based on that.
                  */
             case SLIP_ESC:
-                if (isBufferEmpty(&(buf->ringBuf))) {
-                    configASSERT(buf->packetCnt == 0);
-                    return received;
-                }
-                //taskENTER_CRITICAL();
-                configASSERT(!isBufferFull(&(buf->ringBuf)));
-                drv_rbuf_read(&(buf->ringBuf), &c);
-                //taskEXIT_CRITICAL();
+                status = serial_recv_bytes(serial, &c, 1);
 
                 /* if "c" is not one of these two, then we
                  * have a protocol violation.  The best bet
@@ -144,14 +121,14 @@ int slip_read_packet(uint8_t *p, int len) {
                         break;
                 }
                 // Store the character
-                if (received < len) {
-                    p[received++] = c;
+                if (bytes_received < len) {
+                    p[bytes_received++] = c;
                 }
                 break;
             default:
                 // Store the character
-                if (received < len) {
-                    p[received++] = c;
+                if (bytes_received < len) {
+                    p[bytes_received++] = c;
                 }
         }
     }

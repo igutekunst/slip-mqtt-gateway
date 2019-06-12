@@ -33,10 +33,6 @@ def get_var_generator():
 
 uniqe_var = get_var_generator()
 
-print (uniqe_var())
-print (uniqe_var())
-
-
 
 c_type_map = {
     'uint8':    'uint8_t',
@@ -291,13 +287,17 @@ def fpath(f):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('yaml_file')
+    parser.add_argument('--yaml-file')
+    parser.add_argument('--output-dir')
+    parser.add_argument('-t', '--templates', nargs='+', help='<Required> template files', required=True)
+
 
     args = parser.parse_args()
+    print (args)
 
     data = load_yaml(args.yaml_file)
 
-    templates = [fpath('packet_header.h.mako'), fpath('packet_decoder.c.mako')]
+    templates = [os.path.join(os.getcwd(), t) for t in args.templates]
 
     items = data['packet']
     unparsed_packet = copy.deepcopy(data['packet'])
@@ -307,9 +307,6 @@ def main():
 
     pv = GeneratePacketParser()
     pv.visit(unparsed_packet)
-
-    for op in pv.code:
-        print (op)
 
     for template_filename in templates:
         base_name, ext = splitext(template_filename)
@@ -329,11 +326,17 @@ def main():
                               uniqe_var=uniqe_var
                               )
 
-        with open(base_name, 'w') as out_file:
+        if args.output_dir:
+            filename = os.path.split(base_name)[1]
+            out_file_name = os.path.join(args.output_dir, filename)
+            if not os.path.exists(args.output_dir):
+                os.makedirs(args.output_dir)
+        else:
+            out_file_name = base_name
+
+        with open(out_file_name, 'w') as out_file:
             out_file.write(out)
-
-
-
+            print ("output file {}".format(out_file_name))
 
 
 if __name__ == '__main__':

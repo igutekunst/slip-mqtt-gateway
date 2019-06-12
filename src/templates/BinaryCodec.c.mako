@@ -1,6 +1,6 @@
-#include <packet_header.h>
+#include "BinaryCodecHeader.h"
+#include "BinaryCodec.h"
 #include <stddef.h>
-#include <packet_decoder.h>
 #include <string.h>
 
 /**
@@ -66,8 +66,7 @@ void write_data(uint8_t** data_ptr, void* src, size_t size, size_t* bytes_remain
 
 
 #define WRITE_ENUM(c_type, packet_type, dst, src, bytes_remaining) ${"\\"}
-    packet_type UNIQUE_NAME(scratch) = (packet_type) src; memcpy(dst, &UNIQUE_NAME(scratch), sizeof(packet_type));
-
+    packet_type UNIQUE_NAME(scratch) = (packet_type) src; memcpy(*dst, &UNIQUE_NAME(scratch), sizeof(packet_type)); *(dst) += sizeof(packet_type)
 /**
  *  Decode packet from raw network order (LE) packet
  * @param pointer to union representing all possible packets
@@ -78,12 +77,18 @@ void write_data(uint8_t** data_ptr, void* src, size_t size, size_t* bytes_remain
 PacketParserReturnType
 packet_decode_from_byte_array(union ConcentratorPacket* packet,
                               uint8_t *data,
-                              size_t size
+                              size_t size,
+                              size_t* bytes_written
                               ) {
     uint8_t* data_ptr = data;
     size_t bytes_remaining = size;
-    ${make_codec_body(parser_code, 'read')}
+    if (bytes_written == NULL) {
+        return PACKET_PARSER_NULL_POINTER;
+    }
 
+    ${make_codec_body(parser_code, 'read')}
+    *bytes_written = (size_t) (data_ptr - data);
+    return PACKET_PARSE_ERROR_NONE;
 }
 
 
@@ -97,12 +102,18 @@ packet_decode_from_byte_array(union ConcentratorPacket* packet,
 PacketParserReturnType
 packet_encode_to_byte_array(uint8_t *data,
                             union ConcentratorPacket* packet,
-                            size_t size
+                            size_t size,
+                            size_t* bytes_written
                             ) {
     uint8_t* data_ptr = data;
     size_t bytes_remaining = size;
-    ${make_codec_body(parser_code, 'write')}\
+    if (bytes_written == NULL) {
+        return PACKET_PARSER_NULL_POINTER;
+    }
 
+    ${make_codec_body(parser_code, 'write')}\
+    *bytes_written = (size_t) (data_ptr - data);
+    return PACKET_PARSE_ERROR_NONE;
 }
 
 <%def name='make_codec_body(code,rw)'>

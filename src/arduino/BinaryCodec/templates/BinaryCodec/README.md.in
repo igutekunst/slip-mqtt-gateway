@@ -1,0 +1,29 @@
+# Sensor Network Binary Protocol
+
+A Particle library for encoding and decoding a proprietary binary protocol for an Iot network.
+
+## Usage
+
+Connect XYZ hardware, add the PacketFormat library to your project and follow this simple example:
+
+```
+#include "BinaryCodec.h"
+
+void setup() {
+}
+
+void loop() {
+
+}
+```
+
+See the [examples](BinaryCodec/examples) folder for more details.
+
+## Documentation
+
+TODO: Describe `PacketFormat`
+
+## LICENSE
+Copyright 2019 Isaac Gutekunst
+
+Not licensed for use. Internal and proprietary.
