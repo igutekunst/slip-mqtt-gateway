@@ -119,7 +119,7 @@ packet_encode_to_byte_array(uint8_t *data,
 <%def name='make_codec_body(code,rw)'>
 <% indent = 0 %>
 % for op in code:
-<% F = 'ENUM' if 'full_type' in op and (op['full_type'].startswith('enum') or op['full_type'].startswith('bool'))  else 'TYPED' %>\
+<% F = 'ENUM' if 'full_type' in op and op['full_type'].startswith('enum') else 'TYPED' %>\
 % if op['op'] == 'read':
     % if rw == 'read':
     ${' ' * indent}READ_${F}(${op['full_type']}, ${c_type_map[op['type']]}, packet->${op['dst']}, &data_ptr, &bytes_remaining);\

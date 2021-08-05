@@ -35,7 +35,8 @@ struct DualModeSensorPacket {
     uint16_t battery_percentage;
     uint32_t time;
     uint8_t button;
-    bool conc_led_toggle;
+    uint8_t padding;
+    uint8_t conc_led_toggle;
 };
 
 union ConcentratorPacket { 

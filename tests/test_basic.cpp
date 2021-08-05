@@ -6,7 +6,6 @@ extern "C" {
 }
 
 
-
 TEST(TestGeneratedDecoder, TestSanity) {
     uint8_t packet_type = 1;
     uint8_t source_address = 23;
@@ -31,6 +30,7 @@ TEST(TestGeneratedEncoder, TestSanity) {
     packet_decode_from_byte_array(&packet, ack_packet, sizeof(ack_packet), 0);
 
 }
+
 
 TEST(TestFakeSerial, TestSanity) {
     SerialPort* p;

@@ -41,10 +41,8 @@ packet:
             type: uint32
           - name: button
             type: uint8
-          - name: padding
-            type: uint8
           - name: Conc Led Toggle
-            type: uint8
+            type: bool
 
 
 

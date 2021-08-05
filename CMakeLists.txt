@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.7)
-project(BinaryCodec VERSION 0.0.4)
+project(BinaryCodec VERSION 0.0.5)
 enable_language(CXX C)
 set (CMAKE_CXX_STANDARD 11)
 enable_testing()

@@ -1,85 +1,82 @@
-# Sensor Network Project
+# Binary Code Generation Tool
+## Overview 
+This library consists of tools for generating binary codecs/serializers/deserializers.
 
-## SLIP MQTT Gateway
+Given a YAML file, this library will generate code for supported platforms for serializing and
+deserializing binary structures.
 
-This is a sub-project over the IoT gateway project. This readme describes
-both the larger architecture, as well as specifics ot the SLIP MQTT gateway project.
+## More Details
 
+Currently only ANSI C is supported as a language. 
 
-
-## Proposed Architecture
-
-A 'concentrator' node is connected to Particle device via SPI or UART.
-This two MCU system collectively is known as the "Gateway". 
-
-The gateway communicates via Cell or WiFi via MQTT to an MQTT gateway such as [Adafruit IO], publishing 
-updates to sensors status, either asynchronously or periodically.
-
-### Configuration and Deployment
-To deploy a new site, the concentrator node is flashed with custom/per-site firmware with sensor configuration embedded.
-
-Initially sensor configuration is specified via a C header file, with properties simply encoded in a giant 
-struct initialization.
-
-The next workflow improvement would be to generate configuration headers via a web interface, making it 
-easier and less error prone to add sensors.
-
-Future versions could support a dynamic configuration loaded via another method, potentially OTA.
-
-
-### Technical details
-The "gateway" consists of a low power RF transceiver (CC1350) and a IP capable MCU with an MQTT stack.
-The two communicate via a custom packet format that is encoded using [SLIP]. This translation layer
-is designed to be easily portable between MCUs, the only requirement being support for ANSI C, and functions for 
-sending and receiving bytes.
-
-
-**Packet format**
-
-The packet format between the IP MCU and concentrator is intentionally very simple. It maps 1:1 with the packet
-format used over the air, with slight modifications used to store the length of the packet.
-
-```C/C++
-typedef struct {
-    uint8_t length;
-    uint8_t type;
-} PacketHeader;
-
-union CommPacket {
-    struct PacketHeader header;
-    struct AdcSensorPacket adcSensorPacket;
-    struct DualModeSensorPacket dmSensorPacket;
-};
-```
 
 ###  Library Structure
 
 This library is designed to run on multiple targets: Desktop (Posix), Arduino,
 Arduino like (Particle), and TI RTOS projects, specifically the CC13xx wireless MCUs.
 
-These will likely be broken up into three separate libraries once the infrastructure is in place.
+The library also may target multiple languages and runtimes. 
 
+Examples:
+* ANSI C struct to/from byte array
+* ANSI C struct to/from FILE like object (block and non-blocking)
+* Wireshark disector
+* Python wrapper for ANSI C on platforms supporting pyserial
+* Pure python implementation using pyserial
+
+Each of these will potentially be implemented a bit different. Right now the structure I'm playing with is:
+
+* Top level python package
+* ANSI C python package
+
+The ANSI c python package will depend on features in the top level package. The top level package will 
+contain code to generate a CMake project. Each support platform will leave in a python plugin (package), that can be
+installed separately (inspired by sphinx).
+
+To use the library, you'll define a new folder with some kind of packet.yaml, and maybe some additional metadata, such
+as enabled plugins.
+
+Then you'll run some command, like "generate_codec_cmake", which will create a cmake project with a 
+top level CMakeLists.txt, with sub-directories for each plugin.
+
+Each plugin in turn will have a metadata component, a python component, and a CMake component. The python component might be empty.
+
+The metadata component will specify a list of templates that need to be rendered by the top level project. Some
+will be pretty much straight copy operations into a per-plugin directory, including a per-plugin CMakeLists.txt
+
+The Per plugin CMakeLists.txt will depend on certain CMake variables and functions being present to generate its
+output in however way it wants.
+
+We could potentially flip the dependencies around a slight bit. In this case, there is a top-level
+cmake project that provides functions for invoking the python template rendering, and maybe a bit
+more. Each plugin can in turn depend on this, which allows you to compile each one separately,
+potentially with different toolchain files.
+
+After much deliberation, I think it makes the most sense to have the python generate create fully independent 
+CMake projects. There's not need to add extra complexity with a CMake dependency graph.
+
+One interesting piece: For all the C targets at least, there is a common set of 
+C files, such as `serial_hal.c`,`slip.c`, and maybe a few more.
+
+I think the sub-projects, or plugins need some way to pull in these common *templates*, so 
+some kind of template search path may be in order.
+
+Maybe you have a metadata.yaml
+```yaml
+inherited_templates:
+  - destination: src
+    files:
+      - ${base}/serial_hal.c
+      - ${base}/slip.c
+  - destination: include
+    files:
+      - ${base}/serial_hal.h
+      - ${base}/slip.h
+  - destination: ${root}
+    files:
+      - BinaryCodec
+    
 ```
-
-Main Library
-packet.yaml -> packet_decoder.{c,h}
-               packet_header.h
-         
-Serial HAL Library
-                serial_hal.c
-                serial_hal.h
-                
-SLIP Library:
-                slip.c
-                slip.h
-                
-
-All target will use these core files to create appropriate libraries.
-
-```
-
-
-
 
 ## References
  * [SLIP] - A useful tool for encoding packets of an arbitrary serial link.

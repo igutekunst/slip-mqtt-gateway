@@ -1,7 +1,7 @@
 name=${PROJECT_NAME}
 version=${PROJECT_VERSION}
-author=Isaac Gutekunst
-maintainer= Isaac Gutekunst <isaac@isaac.cc>
+author=Kevin Rumon
+maintainer= Kevin Rumon <kevin@independent.io>
 license=Proprietary and Confidential
 sentence=Binary Encoder/Decoder library with a fixed set of packets generated from a YAML file.
 paragraph=The format of the binary protocol is defined in a separate project, that when compiled generates this library.

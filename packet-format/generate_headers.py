@@ -72,6 +72,7 @@ def format_decl(decl_map, indent=0, type_map=c_type_map):
         decl_type = type_map[decl_map['type']]
     return '{}{} {};'.format(' '*indent, decl_type, name )
 
+
 def process_packet_items(packet, parent=None, context=None):
     packet = packet.copy()
     """
@@ -280,24 +281,9 @@ def fpath(f):
     return os.path.realpath(os.path.join(path, f))
 
 
+def process_yaml(yaml_filename, template_filename = None):
 
-# End likely C template
-
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--yaml-file')
-    parser.add_argument('--output-dir')
-    parser.add_argument('-t', '--templates', nargs='+', help='<Required> template files', required=True)
-
-
-    args = parser.parse_args()
-    print (args)
-
-    data = load_yaml(args.yaml_file)
-
-    templates = [os.path.join(os.getcwd(), t) for t in args.templates]
+    data = load_yaml(yaml_filename)
 
     items = data['packet']
     unparsed_packet = copy.deepcopy(data['packet'])
@@ -308,23 +294,36 @@ def main():
     pv = GeneratePacketParser()
     pv.visit(unparsed_packet)
 
+    template_context = dict(packet=packet,
+                            structs=context['structs'],
+                            enums=context['enums'],
+                            format_decl=format_decl,
+                            template_filename=template_filename,
+                            exe=os.path.split(sys.argv[0])[1],
+                            make_c_typename=make_c_typename,
+                            make_c_identifier=make_c_identifier,
+                            c_type_map=c_type_map,
+                            parser_code=pv.code,
+                            uniqe_var=uniqe_var)
+    return template_context
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--yaml-file')
+    parser.add_argument('--output-dir')
+    parser.add_argument('-t', '--templates', nargs='+', help='<Required> template files', required=True)
+
+    args = parser.parse_args()
+
+    templates = [os.path.join(os.getcwd(), t) for t in args.templates]
     for template_filename in templates:
         base_name, ext = splitext(template_filename)
 
         template = Template(filename=template_filename)
+        template_context = process_yaml(args.yaml_file, template_filename)
 
-        out = template.render(packet=packet,
-                              structs=context['structs'],
-                              enums=context['enums'],
-                              format_decl=format_decl,
-                              template_filename=template_filename,
-                              exe=os.path.split(sys.argv[0])[1],
-                              make_c_typename=make_c_typename,
-                              make_c_identifier=make_c_identifier,
-                              c_type_map=c_type_map,
-                              parser_code=pv.code,
-                              uniqe_var=uniqe_var
-                              )
+        out = template.render(**template_context)
 
         if args.output_dir:
             filename = os.path.split(base_name)[1]
